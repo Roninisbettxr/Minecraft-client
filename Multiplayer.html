@@ -5,11 +5,11 @@
 
 
 
+<title>Minecraft Client // Multi Player</title>
 
 
 
-
-<button id="Multiplayer-buttons-join">Join Server</button>
+<a href="JoinServer.html"><button id="Multiplayer-buttons-join">Join Server</button></a>
 <button id="Multiplayer-buttons-host">Host LAN Proxy</button>
 <button id="Multiplayer-buttons-rmv">RMV Server</button>
 <a href="index.html"><button id="Multiplayer-buttons-back">Back</button></a>
@@ -91,37 +91,7 @@ font-size: 20px;
 
 </style>
 
-<script>
-document.querySelector('#Multiplayer-buttons-join').addEventListener('click', () => {
-  const proxyUrl = prompt("Enter Proxy WebSocket URL:", "wss://localhost:8080");
-  
-  if (proxyUrl) {
-    connectToProxy(proxyUrl);
-  }
-});
 
-function connectToProxy(url) {
-  const socket = new WebSocket(url);
-
-  socket.onopen = () => {
-    console.log("Connected to Minecraft Proxy!");
-    // Trigger game engine join sequence
-  };
-
-  socket.onerror = (err) => {
-    alert("Failed to connect to proxy. Check console for details.");
-    console.error(err);
-  };
-}
-
-
-
-
-
-
-
-
-</script>
 
 
 

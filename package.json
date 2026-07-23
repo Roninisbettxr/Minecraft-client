@@ -1,7 +1,6 @@
 {
-  "name": "html-minecraft-server",
+  "name": "minecraft-server",
   "version": "26.2.0",
-  "description": "HTML Minecraft WebSocket Server",
   "main": "server.js",
   "scripts": {
     "start": "node server.js"

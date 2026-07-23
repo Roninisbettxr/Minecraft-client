@@ -1,0 +1,129 @@
+<html>
+<body id="multiplayer-body">
+
+<h1 id="multiplayer-title">Minecraft Client /// Multi Player</h1>
+
+
+
+
+
+
+
+<button id="Multiplayer-buttons-join">Join Server</button>
+<button id="Multiplayer-buttons-host">Host LAN Proxy</button>
+<button id="Multiplayer-buttons-rmv">RMV Server</button>
+<a href="34563456346.html"><button id="Multiplayer-buttons-back">Back</button></a>
+
+
+</body>
+<style>
+
+#multiplayer-body{
+background-image: url("https://www.dropbox.com/scl/fi/i0ba5p1rv2r9cebqjrrdr/dirt_background.jpg?rlkey=y37jxbz9nh4xkwapls8w8pic2&st=42ygjzi9&raw=1");
+
+
+
+
+
+
+
+
+
+}
+
+#Multiplayer-title{
+
+text-align: center;
+font-family: bold;
+font-weight: 100px;
+font-size: 50px;
+background-color: #ffffff;
+border-radius: 50px;
+}
+
+#Multiplayer-buttons-join{
+
+margin-top: 730px;
+border-radius: 50px;
+width: 100vw;
+max-width: 24.1vw;
+height: 42px;
+background-color: rgba(66, 38, 38, 0.534);
+font-size: 20px;
+
+}
+
+#Multiplayer-buttons-host{
+
+margin-top: 730px;
+border-radius: 50px;
+width: 100vw;
+max-width: 24.1vw;
+height: 42px;
+background-color: rgba(66, 38, 38, 0.534);
+font-size: 20px;
+
+}
+
+#Multiplayer-buttons-rmv{
+
+margin-top: 730px;
+border-radius: 50px;
+width: 100vw;
+max-width: 24.1vw;
+height: 42px;
+background-color: rgba(66, 38, 38, 0.534);
+font-size: 20px;
+
+}
+
+#Multiplayer-buttons-back{
+
+margin-top: 730px;
+border-radius: 50px;
+width: 100vw;
+max-width: 24.1vw;
+height: 42px;
+background-color: rgba(66, 38, 38, 0.534);
+font-size: 20px;
+
+}
+
+</style>
+
+<script>
+document.querySelector('#Multiplayer-buttons-join').addEventListener('click', () => {
+  const proxyUrl = prompt("Enter Proxy WebSocket URL:", "wss://localhost:8080");
+  
+  if (proxyUrl) {
+    connectToProxy(proxyUrl);
+  }
+});
+
+function connectToProxy(url) {
+  const socket = new WebSocket(url);
+
+  socket.onopen = () => {
+    console.log("Connected to Minecraft Proxy!");
+    // Trigger game engine join sequence
+  };
+
+  socket.onerror = (err) => {
+    alert("Failed to connect to proxy. Check console for details.");
+    console.error(err);
+  };
+}
+
+
+
+
+
+
+
+
+</script>
+
+
+
+
+</html>

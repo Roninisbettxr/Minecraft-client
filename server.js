@@ -1,10 +1,18 @@
+const http = require('http');
 const WebSocket = require('ws');
 
-// Use Render's dynamic port, or fall back to port 8080 for local testing
+// Use Render's assigned port, or default to 8080 for local testing
 const PORT = process.env.PORT || 8080;
-const wss = new WebSocket.Server({ port: PORT });
 
-// Store connected players and their positions
+// 1. Create an HTTP server so Render's health check gets a 200 OK response
+const server = http.createServer((req, res) => {
+    res.writeHead(200, { 'Content-Type': 'text/plain' });
+    res.end('Minecraft WebSocket Server is Running!');
+});
+
+// 2. Attach WebSocket server to the HTTP server on the same port
+const wss = new WebSocket.Server({ server });
+
 const players = {};
 
 wss.on('connection', (ws) => {
@@ -61,4 +69,7 @@ function broadcast(data, excludeWs = null) {
     });
 }
 
-console.log(`Multiplayer server running on port ${PORT}`);
+// Start listening
+server.listen(PORT, () => {
+    console.log(`Multiplayer server running on port ${PORT}`);
+});

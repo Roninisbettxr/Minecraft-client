@@ -1,8 +1,10 @@
 const WebSocket = require('ws');
 
-// Create a WebSocket server listening on port 8080
-const wss = new WebSocket.Server({ port: 8080 });
+// Use Render's dynamic port, or fall back to port 8080 for local testing
+const PORT = process.env.PORT || 8080;
+const wss = new WebSocket.Server({ port: PORT });
 
+// Store connected players and their positions
 const players = {};
 
 wss.on('connection', (ws) => {
@@ -12,14 +14,14 @@ wss.on('connection', (ws) => {
     // Set starting player position
     players[id] = { x: 0, y: 10, z: 0 };
 
-    // Send the current player ID and existing players list to the new connection
+    // Send the player their ID and current active players
     ws.send(JSON.stringify({
         type: 'init',
         id: id,
         players: players
     }));
 
-    // Listen for movement/actions from the client
+    // Listen for incoming player messages
     ws.on('message', (message) => {
         try {
             const data = JSON.parse(message);
@@ -27,7 +29,7 @@ wss.on('connection', (ws) => {
             if (data.type === 'move') {
                 players[id] = { x: data.x, y: data.y, z: data.z };
                 
-                // Send player's new position to all other connected clients
+                // Broadcast player movement to everyone else
                 broadcast({
                     type: 'playerMoved',
                     id: id,
@@ -39,7 +41,7 @@ wss.on('connection', (ws) => {
         }
     });
 
-    // Handle player disconnect
+    // Handle player disconnects
     ws.on('close', () => {
         delete players[id];
         broadcast({
@@ -49,6 +51,7 @@ wss.on('connection', (ws) => {
     });
 });
 
+// Helper function to send messages to all connected clients
 function broadcast(data, excludeWs = null) {
     const message = JSON.stringify(data);
     wss.clients.forEach((client) => {
@@ -58,4 +61,4 @@ function broadcast(data, excludeWs = null) {
     });
 }
 
-console.log('Multiplayer WebSocket server running on ws://localhost:8080');
+console.log(`Multiplayer server running on port ${PORT}`);

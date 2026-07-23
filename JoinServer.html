@@ -137,34 +137,43 @@ font-size: 20px;
 
 <script>
 document.querySelector('#join-server-buttons').addEventListener('click', () => {
-  const proxyUrl = prompt("Enter Proxy WebSocket URL:", "RSGSserver.aternos.me:37773");
+  // Read value directly from the input text box
+  let proxyUrl = document.querySelector('#join-server-input').value.trim();
   
-  if (proxyUrl) {
-    connectToProxy(proxyUrl);
+  if (!proxyUrl) {
+    alert("Please enter a server address in the text box!");
+    return;
   }
+
+  // Automatically prepend wss:// if missing
+  if (!proxyUrl.startsWith("ws://") && !proxyUrl.startsWith("wss://")) {
+    proxyUrl = "wss://" + proxyUrl;
+  }
+
+  connectToProxy(proxyUrl);
 });
 
 function connectToProxy(url) {
-  const socket = new WebSocket(url);
+  console.log("Connecting to:", url);
 
-  socket.onopen = () => {
-    console.log("Connected to Minecraft Proxy!");
-    // Trigger game engine join sequence
-  };
+  try {
+    const socket = new WebSocket(url);
 
-  socket.onerror = (err) => {
-    alert("Failed to connect to proxy. Check console for details.");
+    socket.onopen = () => {
+      console.log("Connected to Minecraft Proxy!");
+      alert("Successfully connected to server!");
+      // Trigger game engine join sequence
+    };
+
+    socket.onerror = (err) => {
+      alert("Failed to connect to proxy. Check console for details.");
+      console.error(err);
+    };
+  } catch (err) {
+    alert("Invalid WebSocket URL format.");
     console.error(err);
-  };
+  }
 }
-
-
-
-
-
-
-
-
 </script>
 
 

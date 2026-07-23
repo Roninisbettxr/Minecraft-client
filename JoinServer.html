@@ -137,49 +137,33 @@ font-size: 20px;
 
 <script>
 document.querySelector('#join-server-buttons').addEventListener('click', () => {
-  const inputElement = document.querySelector('#join-server-input');
+  let proxyUrl = document.querySelector('#join-server-input').value.trim();
   
-  // 1. Grab typed text OR fallback to placeholder text
-  let proxyUrl = inputElement.value.trim() || inputElement.placeholder.trim();
-
   if (!proxyUrl) {
-    alert("Please type a server address into the box!");
-    return;
+    proxyUrl = "minecraft-client-jzka.onrender.com";
   }
 
-  // 2. Prepend wss:// if missing
   if (!proxyUrl.startsWith("ws://") && !proxyUrl.startsWith("wss://")) {
     proxyUrl = "wss://" + proxyUrl;
   }
 
-  console.log("Attempting connection to:", proxyUrl);
   connectToProxy(proxyUrl);
 });
 
 function connectToProxy(url) {
-  alert("Connecting to: " + url);
+  const socket = new WebSocket(url);
 
-  try {
-    const socket = new WebSocket(url);
+  socket.onopen = () => {
+    alert("Connected! Loading game...");
+    
+    // Send the player straight to your main game page!
+    window.location.href = "index.html"; 
+  };
 
-    socket.onopen = () => {
-      console.log("Connected to WebSocket Server!");
-      alert("SUCCESS: Connected to server!");
-      // Insert your game join sequence here
-    };
-
-    socket.onerror = (err) => {
-      alert("CONNECTION ERROR: Could not reach " + url + "\nCheck Developer Console (F12) for details.");
-      console.error("WebSocket Error:", err);
-    };
-
-    socket.onclose = (evt) => {
-      console.log("Connection closed:", evt);
-    };
-  } catch (err) {
-    alert("INVALID URL: " + err.message);
+  socket.onerror = (err) => {
+    alert("Could not reach server!");
     console.error(err);
-  }
+  };
 }
 </script>
 

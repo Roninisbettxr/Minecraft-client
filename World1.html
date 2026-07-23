@@ -32,8 +32,8 @@
       border-radius: 5px;
     }
   </style>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/simplex-noise/2.4.0/simplex-noise.min.js"></script>
+  <script src="[https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js](https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js)"></script>
+  <script src="[https://cdnjs.cloudflare.com/ajax/libs/simplex-noise/2.4.0/simplex-noise.min.js](https://cdnjs.cloudflare.com/ajax/libs/simplex-noise/2.4.0/simplex-noise.min.js)"></script>
 </head>
 <body>
 
@@ -44,9 +44,8 @@
   </div>
 
   <script>
-    // 1. Setup Scene, Camera, Renderer
     const scene = new THREE.Scene();
-    scene.background = new THREE.Color(0x87CEEB); // Minecraft Sky Blue
+    scene.background = new THREE.Color(0x87CEEB);
     scene.fog = new THREE.FogExp2(0x87CEEB, 0.025);
 
     const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
@@ -54,14 +53,12 @@
     renderer.setSize(window.innerWidth, window.innerHeight);
     document.body.appendChild(renderer.domElement);
 
-    // 2. Lighting
     const ambientLight = new THREE.AmbientLight(0xffffff, 0.6);
     scene.add(ambientLight);
     const dirLight = new THREE.DirectionalLight(0xffffff, 0.8);
     dirLight.position.set(50, 100, 50);
     scene.add(dirLight);
 
-    // 3. Block Materials & Geometry
     const boxGeo = new THREE.BoxGeometry(1, 1, 1);
     const materials = {
       grass: new THREE.MeshLambertMaterial({ color: 0x557a2b }),
@@ -69,17 +66,14 @@
       stone: new THREE.MeshLambertMaterial({ color: 0x808080 })
     };
 
-    // 4. Procedural Generation (Simplex Noise)
     const simplex = new SimplexNoise();
     const loadedChunks = {};
     const CHUNK_SIZE = 8;
-    const RENDER_DISTANCE = 3; // Chunks around player
+    const RENDER_DISTANCE = 3;
 
     function getTerrainHeight(x, z) {
-      // Scale noise to create smooth Minecraft hills
       let scale = 0.03;
-      let height = Math.floor(simplex.noise2D(x * scale, z * scale) * 6) + 10;
-      return height;
+      return Math.floor(simplex.noise2D(x * scale, z * scale) * 6) + 10;
     }
 
     function generateChunk(chunkX, chunkZ) {
@@ -94,19 +88,16 @@
           const worldZ = chunkZ * CHUNK_SIZE + z;
           const surfaceY = getTerrainHeight(worldX, worldZ);
 
-          // Top Grass Block
           const grassMesh = new THREE.Mesh(boxGeo, materials.grass);
           grassMesh.position.set(worldX, surfaceY, worldZ);
           chunkGroup.add(grassMesh);
 
-          // Dirt Layers
           for (let y = surfaceY - 1; y >= surfaceY - 2; y--) {
             const dirtMesh = new THREE.Mesh(boxGeo, materials.dirt);
             dirtMesh.position.set(worldX, y, worldZ);
             chunkGroup.add(dirtMesh);
           }
 
-          // Underground Stone
           for (let y = surfaceY - 3; y >= surfaceY - 5; y--) {
             const stoneMesh = new THREE.Mesh(boxGeo, materials.stone);
             stoneMesh.position.set(worldX, y, worldZ);
@@ -130,7 +121,6 @@
       }
     }
 
-    // 5. Player Position & Pointer Lock Controls
     camera.position.set(0, 20, 0);
 
     let moveForward = false, moveBackward = false, moveLeft = false, moveRight = false, canJump = false;
@@ -167,18 +157,15 @@
       }
     });
 
-    // 6. Main Game Loop
     function animate() {
       requestAnimationFrame(animate);
 
-      // Player Movement
       const speed = 0.12;
       if (moveForward) camera.translateZ(-speed);
       if (moveBackward) camera.translateZ(speed);
       if (moveLeft) camera.translateX(-speed);
       if (moveRight) camera.translateX(speed);
 
-      // Gravity & Basic Ground Collision
       camera.position.y += velocityY;
       velocityY += gravity;
 
@@ -189,15 +176,12 @@
         canJump = true;
       }
 
-      // Dynamically load chunks as player walks
       updateChunks();
-
       renderer.render(scene, camera);
     }
 
     animate();
 
-    // Window Resize Handler
     window.addEventListener('resize', () => {
       camera.aspect = window.innerWidth / window.innerHeight;
       camera.updateProjectionMatrix();

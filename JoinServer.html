@@ -1,0 +1,206 @@
+<html>
+<body id="join-server-body">
+
+
+
+<h3 id="join-server-title">Enter Server Here!</h3>
+<input type="text" id="join-server-input" placeholder="Enter Server Here!">
+<button id="join-server-buttons">Join Server</button></b>
+<a href="index.html"><button id="join-server-buttons-2">Back</button></b>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+</body>
+
+
+<style>
+
+#join-server-body{
+
+background-image: url("https://www.dropbox.com/scl/fi/i0ba5p1rv2r9cebqjrrdr/dirt_background.jpg?rlkey=y37jxbz9nh4xkwapls8w8pic2&st=42ygjzi9&raw=1");
+
+}
+
+#join-server-input{
+margin: 1px;
+margin-top: 2%;
+width: 100vw;
+height: 50px;
+border-radius: 39px;
+background-color: rgba(66, 38, 38, 0.534);
+text-size: 20px;
+font-size: 17px;
+max-width: 97vw;
+
+
+}
+
+
+
+
+#Join-server-input:hover{
+background-color: rgba(66, 38, 38, 0.13);
+
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+#join-server-title{
+
+margin: 10px;
+margin-bottom: 0%;
+nav-down: 100px;
+down: 100px;
+color: white;
+bold: true;
+font-size: 40px;
+width: 100vw;
+margin-top: 213px;
+
+}
+
+#Join-server-buttons{
+width: 97vw;
+margin: 3px;
+background-color: rgba(66, 38, 38, 0.534);
+height: 42px;
+border-radius: 50px;
+font-size: 20px;
+
+
+}
+
+
+#Join-server-buttons-2{
+width: 97vw;
+margin: 3px;
+background-color: rgba(66, 38, 38, 0.534);
+height: 42px;
+border-radius: 50px;
+font-size: 20px;
+
+
+}
+
+
+
+
+
+
+
+
+</style>
+
+
+
+
+
+
+<script>
+document.querySelector('#join-server-buttons').addEventListener('click', () => {
+  const proxyUrl = prompt("Enter Proxy WebSocket URL:", "wss://localhost:8080");
+  
+  if (proxyUrl) {
+    connectToProxy(proxyUrl);
+  }
+});
+
+function connectToProxy(url) {
+  const socket = new WebSocket(url);
+
+  socket.onopen = () => {
+    console.log("Connected to Minecraft Proxy!");
+    // Trigger game engine join sequence
+  };
+
+  socket.onerror = (err) => {
+    alert("Failed to connect to proxy. Check console for details.");
+    console.error(err);
+  };
+}
+
+
+
+
+
+
+
+
+</script>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+</html>

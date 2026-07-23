@@ -5,7 +5,7 @@
   "scripts": {
     "start": "node server.js"
   },
-  "dependencies": {
-    "ws": "^8.18.0"
-  }
+"dependencies": {
+  "ws": "^8.0.0",
+  "node-minecraft-protocol": "^1.40.0"
 }

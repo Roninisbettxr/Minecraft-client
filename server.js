@@ -1,16 +1,16 @@
 const http = require('http');
 const WebSocket = require('ws');
 
-// Use Render's assigned port, or default to 8080 for local testing
+// Use Render's dynamic port, or default to 8080 for local testing
 const PORT = process.env.PORT || 8080;
 
-// 1. Create an HTTP server so Render's health check gets a 200 OK response
+// 1. Create an HTTP server so Render's health check passes
 const server = http.createServer((req, res) => {
     res.writeHead(200, { 'Content-Type': 'text/plain' });
-    res.end('Minecraft WebSocket Server is Running!');
+    res.end('Minecraft WebSocket Server (v26.2) is Running!');
 });
 
-// 2. Attach WebSocket server to the HTTP server on the same port
+// 2. Attach WebSocket server to the HTTP server
 const wss = new WebSocket.Server({ server });
 
 const players = {};
@@ -22,14 +22,15 @@ wss.on('connection', (ws) => {
     // Set starting player position
     players[id] = { x: 0, y: 10, z: 0 };
 
-    // Send the player their ID and current active players
+    // Send the player their ID, server version (26.2), and existing players
     ws.send(JSON.stringify({
         type: 'init',
+        version: '26.2',
         id: id,
         players: players
     }));
 
-    // Listen for incoming player messages
+    // Listen for incoming player movement/actions
     ws.on('message', (message) => {
         try {
             const data = JSON.parse(message);
@@ -37,7 +38,7 @@ wss.on('connection', (ws) => {
             if (data.type === 'move') {
                 players[id] = { x: data.x, y: data.y, z: data.z };
                 
-                // Broadcast player movement to everyone else
+                // Broadcast movement to all other players
                 broadcast({
                     type: 'playerMoved',
                     id: id,
@@ -69,7 +70,7 @@ function broadcast(data, excludeWs = null) {
     });
 }
 
-// Start listening
+// Start listening on the port
 server.listen(PORT, () => {
-    console.log(`Multiplayer server running on port ${PORT}`);
+    console.log(`Multiplayer server running on version 26.2 (Port: ${PORT})`);
 });

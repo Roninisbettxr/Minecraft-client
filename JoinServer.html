@@ -137,40 +137,47 @@ font-size: 20px;
 
 <script>
 document.querySelector('#join-server-buttons').addEventListener('click', () => {
-  // Read value directly from the input text box
-  let proxyUrl = document.querySelector('#join-server-input').value.trim();
+  const inputElement = document.querySelector('#join-server-input');
   
+  // 1. Grab typed text OR fallback to placeholder text
+  let proxyUrl = inputElement.value.trim() || inputElement.placeholder.trim();
+
   if (!proxyUrl) {
-    alert("Please enter a server address in the text box!");
+    alert("Please type a server address into the box!");
     return;
   }
 
-  // Automatically prepend wss:// if missing
+  // 2. Prepend wss:// if missing
   if (!proxyUrl.startsWith("ws://") && !proxyUrl.startsWith("wss://")) {
     proxyUrl = "wss://" + proxyUrl;
   }
 
+  console.log("Attempting connection to:", proxyUrl);
   connectToProxy(proxyUrl);
 });
 
 function connectToProxy(url) {
-  console.log("Connecting to:", url);
+  alert("Connecting to: " + url);
 
   try {
     const socket = new WebSocket(url);
 
     socket.onopen = () => {
-      console.log("Connected to Minecraft Proxy!");
-      alert("Successfully connected to server!");
-      // Trigger game engine join sequence
+      console.log("Connected to WebSocket Server!");
+      alert("SUCCESS: Connected to server!");
+      // Insert your game join sequence here
     };
 
     socket.onerror = (err) => {
-      alert("Failed to connect to proxy. Check console for details.");
-      console.error(err);
+      alert("CONNECTION ERROR: Could not reach " + url + "\nCheck Developer Console (F12) for details.");
+      console.error("WebSocket Error:", err);
+    };
+
+    socket.onclose = (evt) => {
+      console.log("Connection closed:", evt);
     };
   } catch (err) {
-    alert("Invalid WebSocket URL format.");
+    alert("INVALID URL: " + err.message);
     console.error(err);
   }
 }

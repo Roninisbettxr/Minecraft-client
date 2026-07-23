@@ -1,0 +1,212 @@
+Here is a lightweight, single-file 3D procedural Minecraft terrain engine!
+
+Save the code below as index.html on your Vercel site. It uses Three.js for GPU-accelerated WebGL rendering and a Perlin Noise mathematical algorithm to dynamically generate hills, dirt, grass, and bedrock blocks based on player position.
+
+index.html (Infinite Procedural Minecraft World)
+HTML
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Minecraft Singleplayer Infinite World</title>
+  <style>
+    body {
+      margin: 0;
+      overflow: hidden;
+      font-family: sans-serif;
+      user-select: none;
+    }
+    #crosshair {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      width: 10px;
+      height: 10px;
+      margin-top: -5px;
+      margin-left: -5px;
+      color: white;
+      font-size: 20px;
+      pointer-events: none;
+    }
+    #instructions {
+      position: absolute;
+      top: 20px;
+      left: 20px;
+      color: white;
+      background: rgba(0,0,0,0.6);
+      padding: 10px 15px;
+      border-radius: 5px;
+    }
+  </style>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/simplex-noise/2.4.0/simplex-noise.min.js"></script>
+</head>
+<body>
+
+  <div id="crosshair">+</div>
+  <div id="instructions">
+    <b>Click screen to play</b><br>
+    WASD = Move | Space = Jump | Mouse = Look Around
+  </div>
+
+  <script>
+    // 1. Setup Scene, Camera, Renderer
+    const scene = new THREE.Scene();
+    scene.background = new THREE.Color(0x87CEEB); // Minecraft Sky Blue
+    scene.fog = new THREE.FogExp2(0x87CEEB, 0.025);
+
+    const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+    const renderer = new THREE.WebGLRenderer({ antialias: true });
+    renderer.setSize(window.innerWidth, window.innerHeight);
+    document.body.appendChild(renderer.domElement);
+
+    // 2. Lighting
+    const ambientLight = new THREE.AmbientLight(0xffffff, 0.6);
+    scene.add(ambientLight);
+    const dirLight = new THREE.DirectionalLight(0xffffff, 0.8);
+    dirLight.position.set(50, 100, 50);
+    scene.add(dirLight);
+
+    // 3. Block Materials & Geometry
+    const boxGeo = new THREE.BoxGeometry(1, 1, 1);
+    const materials = {
+      grass: new THREE.MeshLambertMaterial({ color: 0x557a2b }),
+      dirt: new THREE.MeshLambertMaterial({ color: 0x866043 }),
+      stone: new THREE.MeshLambertMaterial({ color: 0x808080 })
+    };
+
+    // 4. Procedural Generation (Simplex Noise)
+    const simplex = new SimplexNoise();
+    const loadedChunks = {};
+    const CHUNK_SIZE = 8;
+    const RENDER_DISTANCE = 3; // Chunks around player
+
+    function getTerrainHeight(x, z) {
+      // Scale noise to create smooth Minecraft hills
+      let scale = 0.03;
+      let height = Math.floor(simplex.noise2D(x * scale, z * scale) * 6) + 10;
+      return height;
+    }
+
+    function generateChunk(chunkX, chunkZ) {
+      const chunkKey = `${chunkX},${chunkZ}`;
+      if (loadedChunks[chunkKey]) return;
+
+      const chunkGroup = new THREE.Group();
+
+      for (let x = 0; x < CHUNK_SIZE; x++) {
+        for (let z = 0; z < CHUNK_SIZE; z++) {
+          const worldX = chunkX * CHUNK_SIZE + x;
+          const worldZ = chunkZ * CHUNK_SIZE + z;
+          const surfaceY = getTerrainHeight(worldX, worldZ);
+
+          // Top Grass Block
+          const grassMesh = new THREE.Mesh(boxGeo, materials.grass);
+          grassMesh.position.set(worldX, surfaceY, worldZ);
+          chunkGroup.add(grassMesh);
+
+          // Dirt Layers
+          for (let y = surfaceY - 1; y >= surfaceY - 2; y--) {
+            const dirtMesh = new THREE.Mesh(boxGeo, materials.dirt);
+            dirtMesh.position.set(worldX, y, worldZ);
+            chunkGroup.add(dirtMesh);
+          }
+
+          // Underground Stone
+          for (let y = surfaceY - 3; y >= surfaceY - 5; y--) {
+            const stoneMesh = new THREE.Mesh(boxGeo, materials.stone);
+            stoneMesh.position.set(worldX, y, worldZ);
+            chunkGroup.add(stoneMesh);
+          }
+        }
+      }
+
+      scene.add(chunkGroup);
+      loadedChunks[chunkKey] = chunkGroup;
+    }
+
+    function updateChunks() {
+      const playerChunkX = Math.floor(camera.position.x / CHUNK_SIZE);
+      const playerChunkZ = Math.floor(camera.position.z / CHUNK_SIZE);
+
+      for (let x = -RENDER_DISTANCE; x <= RENDER_DISTANCE; x++) {
+        for (let z = -RENDER_DISTANCE; z <= RENDER_DISTANCE; z++) {
+          generateChunk(playerChunkX + x, playerChunkZ + z);
+        }
+      }
+    }
+
+    // 5. Player Position & Pointer Lock Controls
+    camera.position.set(0, 20, 0);
+
+    let moveForward = false, moveBackward = false, moveLeft = false, moveRight = false, canJump = false;
+    let velocityY = 0;
+    const gravity = -0.015;
+
+    document.addEventListener('click', () => {
+      document.body.requestPointerLock();
+    });
+
+    document.addEventListener('keydown', (e) => {
+      if (e.code === 'KeyW') moveForward = true;
+      if (e.code === 'KeyS') moveBackward = true;
+      if (e.code === 'KeyA') moveLeft = true;
+      if (e.code === 'KeyD') moveRight = true;
+      if (e.code === 'Space' && canJump) {
+        velocityY = 0.25;
+        canJump = false;
+      }
+    });
+
+    document.addEventListener('keyup', (e) => {
+      if (e.code === 'KeyW') moveForward = false;
+      if (e.code === 'KeyS') moveBackward = false;
+      if (e.code === 'KeyA') moveLeft = false;
+      if (e.code === 'KeyD') moveRight = false;
+    });
+
+    document.addEventListener('mousemove', (e) => {
+      if (document.pointerLockElement === document.body) {
+        camera.rotation.y -= e.movementX * 0.002;
+        camera.rotation.x -= e.movementY * 0.002;
+        camera.rotation.x = Math.max(-Math.PI / 2, Math.min(Math.PI / 2, camera.rotation.x));
+      }
+    });
+
+    // 6. Main Game Loop
+    function animate() {
+      requestAnimationFrame(animate);
+
+      // Player Movement
+      const speed = 0.12;
+      if (moveForward) camera.translateZ(-speed);
+      if (moveBackward) camera.translateZ(speed);
+      if (moveLeft) camera.translateX(-speed);
+      if (moveRight) camera.translateX(speed);
+
+      // Gravity & Basic Ground Collision
+      camera.position.y += velocityY;
+      velocityY += gravity;
+
+      const currentGroundY = getTerrainHeight(Math.round(camera.position.x), Math.round(camera.position.z)) + 2;
+      if (camera.position.y <= currentGroundY) {
+        camera.position.y = currentGroundY;
+        velocityY = 0;
+        canJump = true;
+      }
+
+      // Dynamically load chunks as player walks
+      updateChunks();
+
+      renderer.render(scene, camera);
+    }
+
+    animate();
+
+    // Window Resize Handler
+    window.addEventListener('resize', () => {
+      camera.aspect = window.innerWidth / window.innerHeight;
+      camera.updateProjectionMatrix();
+      renderer.setSize(window.innerWidth, window.innerHeight);
+    });
+  </script>

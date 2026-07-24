@@ -2,11 +2,9 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <title>Minecraft Infinite Singleplayer World</title>
+  <title>Minecraft Enhanced World Generation</title>
   <style>
-    * {
-      box-sizing: border-box;
-    }
+    * { box-sizing: border-box; }
     body {
       margin: 0;
       overflow: hidden;
@@ -31,12 +29,41 @@
       top: 20px;
       left: 20px;
       color: white;
-      background: rgba(0, 0, 0, 0.7);
+      background: rgba(0, 0, 0, 0.75);
       padding: 12px 18px;
       border-radius: 8px;
       z-index: 10;
       font-size: 14px;
       line-height: 1.6;
+    }
+    #hotbar {
+      position: absolute;
+      bottom: 20px;
+      left: 50%;
+      transform: translateX(-50%);
+      display: flex;
+      gap: 8px;
+      background: rgba(0, 0, 0, 0.6);
+      padding: 8px;
+      border-radius: 8px;
+      z-index: 10;
+    }
+    .slot {
+      width: 45px;
+      height: 45px;
+      border: 2px solid #555;
+      border-radius: 4px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: white;
+      font-weight: bold;
+      font-size: 12px;
+      background: #333;
+    }
+    .slot.active {
+      border-color: #fff;
+      box-shadow: 0 0 10px #fff;
     }
   </style>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
@@ -48,81 +75,73 @@
   <div id="ui">
     <b>Click screen to play!</b><br>
     WASD = Move | Space = Jump<br>
-    Left Click = Break Block | Right Click = Place Block
+    1 - 5 = Switch Selected Block<br>
+    Left Click = Break | Right Click = Place
+  </div>
+
+  <div id="hotbar">
+    <div class="slot active" id="slot-1">1: Grass</div>
+    <div class="slot" id="slot-2">2: Dirt</div>
+    <div class="slot" id="slot-3">3: Stone</div>
+    <div class="slot" id="slot-4">4: Wood</div>
+    <div class="slot" id="slot-5">5: Glass</div>
   </div>
 
   <script>
-    // 1. Scene, Camera, and Renderer Setup
+    // 1. Scene, Camera, & Lighting Setup
     const scene = new THREE.Scene();
     scene.background = new THREE.Color(0x87CEEB);
-    scene.fog = new THREE.FogExp2(0x87CEEB, 0.018);
+    scene.fog = new THREE.FogExp2(0x87CEEB, 0.015);
 
     const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
     const renderer = new THREE.WebGLRenderer({ antialias: true });
     renderer.setSize(window.innerWidth, window.innerHeight);
     document.body.appendChild(renderer.domElement);
 
-    // 2. Lighting Setup
-    const ambientLight = new THREE.AmbientLight(0xffffff, 0.65);
+    const ambientLight = new THREE.AmbientLight(0xffffff, 0.7);
     scene.add(ambientLight);
 
-    const sunLight = new THREE.DirectionalLight(0xffffff, 0.85);
-    sunLight.position.set(60, 120, 40);
+    const sunLight = new THREE.DirectionalLight(0xffffff, 0.8);
+    sunLight.position.set(80, 150, 50);
     scene.add(sunLight);
 
-    // 3. Block Textures & Materials
+    // 2. Materials Setup
     const boxGeo = new THREE.BoxGeometry(1, 1, 1);
     const materials = {
-      grass: new THREE.MeshLambertMaterial({ color: 0x557a2b }),
+      grass: new THREE.MeshLambertMaterial({ color: 0x5c8e32 }),
       dirt: new THREE.MeshLambertMaterial({ color: 0x866043 }),
-      stone: new THREE.MeshLambertMaterial({ color: 0x7d7d7d }),
+      stone: new THREE.MeshLambertMaterial({ color: 0x757575 }),
       wood: new THREE.MeshLambertMaterial({ color: 0x614126 }),
-      leaves: new THREE.MeshLambertMaterial({ color: 0x2e6f21, transparent: true, opacity: 0.9 })
+      glass: new THREE.MeshLambertMaterial({ color: 0xadd8e6, transparent: true, opacity: 0.5 }),
+      leaves: new THREE.MeshLambertMaterial({ color: 0x2e6f21, transparent: true, opacity: 0.85 })
     };
 
-    // 4. Procedural Generation Config
+    const materialList = ['grass', 'dirt', 'stone', 'wood', 'glass'];
+    let selectedMaterial = 'grass';
+
+    // 3. Hotbar Selection Logic
+    document.addEventListener('keydown', (e) => {
+      const keyNum = parseInt(e.key);
+      if (keyNum >= 1 && keyNum <= 5) {
+        selectedMaterial = materialList[keyNum - 1];
+        document.querySelectorAll('.slot').forEach(s => s.classList.remove('active'));
+        document.getElementById(`slot-${keyNum}`).classList.add('active');
+      }
+    });
+
+    // 4. Enhanced Terrain Height Noise Function
     const simplex = new SimplexNoise();
     const loadedChunks = {};
     const CHUNK_SIZE = 16;
-    const RENDER_DISTANCE = 2; // Radius around player in chunks
-    const allBlocks = []; // For Raycasting block break/place
+    const RENDER_DISTANCE = 2;
+    const placedBlocks = [];
 
     function getTerrainHeight(x, z) {
-      const scale1 = 0.02;
-      const scale2 = 0.08;
+      const continent = simplex.noise2D(x * 0.005, z * 0.005) * 15;
+      const hills = simplex.noise2D(x * 0.03, z * 0.03) * 6;
+      const detail = simplex.noise2D(x * 0.1, z * 0.1) * 1.5;
       
-      const elevation = simplex.noise2D(x * scale1, z * scale1) * 10;
-      const detail = simplex.noise2D(x * scale2, z * scale2) * 2;
-      
-      return Math.floor(elevation + detail) + 12;
-    }
-
-    function generateTree(chunkGroup, x, y, z) {
-      const trunkHeight = 4 + Math.floor(Math.random() * 2);
-
-      // Wood Trunk
-      for (let i = 0; i < trunkHeight; i++) {
-        const trunk = new THREE.Mesh(boxGeo, materials.wood);
-        trunk.position.set(x, y + i, z);
-        chunkGroup.add(trunk);
-        allBlocks.push(trunk);
-      }
-
-      // Leaves Canopy
-      const leafBaseY = y + trunkHeight - 1;
-      for (let lx = -2; lx <= 2; lx++) {
-        for (let lz = -2; lz <= 2; lz++) {
-          for (let ly = 0; ly <= 2; ly++) {
-            if (Math.abs(lx) === 2 && Math.abs(lz) === 2 && ly > 0) continue;
-            if (lx === 0 && lz === 0 && ly < 2) continue;
-
-            const leaf = new THREE.Mesh(boxGeo, materials.leaves);
-            leaf.position.set(x + lx, leafBaseY + ly, z + lz);
-            chunkGroup.add(leaf);
-            allBlocks.push(leaf);
-          }
-        }
-      }
+      return Math.floor(continent + hills + detail) + 12;
     }
 
     function generateChunk(chunkX, chunkZ) {
@@ -137,31 +156,26 @@
           const worldZ = chunkZ * CHUNK_SIZE + z;
           const surfaceY = getTerrainHeight(worldX, worldZ);
 
-          // Grass Top
+          // Top Grass Block
           const grassMesh = new THREE.Mesh(boxGeo, materials.grass);
           grassMesh.position.set(worldX, surfaceY, worldZ);
           chunkGroup.add(grassMesh);
-          allBlocks.push(grassMesh);
+          placedBlocks.push(grassMesh);
 
-          // Dirt Layers
+          // Sub-surface Dirt
           for (let y = surfaceY - 1; y >= surfaceY - 3; y--) {
             const dirtMesh = new THREE.Mesh(boxGeo, materials.dirt);
             dirtMesh.position.set(worldX, y, worldZ);
             chunkGroup.add(dirtMesh);
-            allBlocks.push(dirtMesh);
+            placedBlocks.push(dirtMesh);
           }
 
-          // Stone Underneath
-          for (let y = surfaceY - 4; y >= surfaceY - 7; y--) {
+          // Underground Stone Layer
+          for (let y = surfaceY - 4; y >= surfaceY - 6; y--) {
             const stoneMesh = new THREE.Mesh(boxGeo, materials.stone);
             stoneMesh.position.set(worldX, y, worldZ);
             chunkGroup.add(stoneMesh);
-            allBlocks.push(stoneMesh);
-          }
-
-          // Tree Placement
-          if (Math.random() < 0.008 && x > 2 && x < CHUNK_SIZE - 2 && z > 2 && z < CHUNK_SIZE - 2) {
-            generateTree(chunkGroup, worldX, surfaceY + 1, worldZ);
+            placedBlocks.push(stoneMesh);
           }
         }
       }
@@ -182,7 +196,7 @@
     }
 
     // 5. Controls & Camera Setup
-    camera.position.set(0, 25, 0);
+    camera.position.set(0, 30, 0);
 
     let moveForward = false, moveBackward = false, moveLeft = false, moveRight = false, canJump = false;
     let velocityY = 0;
@@ -218,7 +232,7 @@
       }
     });
 
-    // 6. Raycasting (Break and Place Blocks)
+    // 6. Block Place/Break Raycasting
     const raycaster = new THREE.Raycaster();
     const mouse = new THREE.Vector2(0, 0);
 
@@ -226,23 +240,24 @@
       if (document.pointerLockElement !== document.body) return;
 
       raycaster.setFromCamera(mouse, camera);
-      const intersects = raycaster.intersectObjects(allBlocks);
+      const intersects = raycaster.intersectObjects(placedBlocks);
 
       if (intersects.length > 0) {
         const hit = intersects[0];
 
         if (e.button === 0) {
-          // Left Click = Break Block
+          // Break Block
           scene.remove(hit.object);
-          const index = allBlocks.indexOf(hit.object);
-          if (index > -1) allBlocks.splice(index, 1);
+          if (hit.object.parent) hit.object.parent.remove(hit.object);
+          const idx = placedBlocks.indexOf(hit.object);
+          if (idx > -1) placedBlocks.splice(idx, 1);
         } else if (e.button === 2) {
-          // Right Click = Place Block
+          // Place Block
           const normal = hit.face.normal;
-          const newBlock = new THREE.Mesh(boxGeo, materials.dirt);
-          newBlock.position.copy(hit.object.position).add(normal);
-          scene.add(newBlock);
-          allBlocks.push(newBlock);
+          const newMesh = new THREE.Mesh(boxGeo, materials[selectedMaterial]);
+          newMesh.position.copy(hit.object.position).add(normal);
+          scene.add(newMesh);
+          placedBlocks.push(newMesh);
         }
       }
     });
@@ -253,7 +268,7 @@
     function animate() {
       requestAnimationFrame(animate);
 
-      const speed = 0.12;
+      const speed = 0.13;
       if (moveForward) camera.translateZ(-speed);
       if (moveBackward) camera.translateZ(speed);
       if (moveLeft) camera.translateX(-speed);
@@ -262,9 +277,9 @@
       camera.position.y += velocityY;
       velocityY += gravity;
 
-      const groundY = getTerrainHeight(Math.round(camera.position.x), Math.round(camera.position.z)) + 2;
-      if (camera.position.y <= groundY) {
-        camera.position.y = groundY;
+      const currentGroundY = getTerrainHeight(Math.round(camera.position.x), Math.round(camera.position.z)) + 2;
+      if (camera.position.y <= currentGroundY) {
+        camera.position.y = currentGroundY;
         velocityY = 0;
         canJump = true;
       }

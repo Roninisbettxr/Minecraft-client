@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <title>Minecraft Singleplayer World</title>
+  <title>Minecraft Procedural World Generation</title>
   <style>
     body {
       margin: 0;
@@ -21,66 +21,105 @@
       pointer-events: none;
       z-index: 10;
     }
-    #instructions {
+    #ui {
       position: absolute;
       top: 20px;
       left: 20px;
       color: white;
-      background: rgba(0,0,0,0.6);
+      background: rgba(0, 0, 0, 0.7);
       padding: 12px 18px;
-      border-radius: 6px;
+      border-radius: 8px;
       z-index: 10;
       font-size: 14px;
+      line-height: 1.5;
     }
   </style>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/simplex-noise/2.4.0/simplex-noise.min.js"></script>
 </head>
 <body>
 
   <div id="crosshair">+</div>
-  <div id="instructions">
-    <b>Click screen to play!</b><br>
-    WASD = Move | Space = Jump | Mouse = Look Around
+  <div id="ui">
+    <b>Click screen to enter game</b><br>
+    WASD = Walk | Space = Jump<br>
+    Left Click = Break Block | Right Click = Place Block
   </div>
 
   <script>
-    // Built-in Simple Procedural Noise Function (No external CDN needed)
-    function pseudoNoise(x, z) {
-      const sinX = Math.sin(x * 0.1);
-      const cosZ = Math.cos(z * 0.1);
-      const combined = Math.sin(x * 0.03 + z * 0.03) * 6;
-      return Math.floor(sinX * 2 + cosZ * 2 + combined) + 10;
-    }
-
-    // 1. Scene, Camera, Renderer
+    // 1. Setup Scene, Camera, and Renderer
     const scene = new THREE.Scene();
     scene.background = new THREE.Color(0x87CEEB);
-    scene.fog = new THREE.FogExp2(0x87CEEB, 0.02);
+    scene.fog = new THREE.FogExp2(0x87CEEB, 0.018);
 
     const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
     const renderer = new THREE.WebGLRenderer({ antialias: true });
     renderer.setSize(window.innerWidth, window.innerHeight);
     document.body.appendChild(renderer.domElement);
 
-    // 2. Lighting
-    const ambientLight = new THREE.AmbientLight(0xffffff, 0.7);
+    // 2. Lighting Setup
+    const ambientLight = new THREE.AmbientLight(0xffffff, 0.65);
     scene.add(ambientLight);
-    const dirLight = new THREE.DirectionalLight(0xffffff, 0.8);
-    dirLight.position.set(50, 100, 50);
-    scene.add(dirLight);
 
-    // 3. Materials
+    const sunLight = new THREE.DirectionalLight(0xffffff, 0.85);
+    sunLight.position.set(60, 120, 40);
+    scene.add(sunLight);
+
+    // 3. Block Textures & Materials
     const boxGeo = new THREE.BoxGeometry(1, 1, 1);
     const materials = {
       grass: new THREE.MeshLambertMaterial({ color: 0x557a2b }),
       dirt: new THREE.MeshLambertMaterial({ color: 0x866043 }),
-      stone: new THREE.MeshLambertMaterial({ color: 0x808080 })
+      stone: new THREE.MeshLambertMaterial({ color: 0x7d7d7d }),
+      wood: new THREE.MeshLambertMaterial({ color: 0x614126 }),
+      leaves: new THREE.MeshLambertMaterial({ color: 0x2e6f21, transparent: true, opacity: 0.9 })
     };
 
-    // 4. Infinite Generation Logic
+    // 4. Procedural Generation Config
+    const simplex = new SimplexNoise();
     const loadedChunks = {};
-    const CHUNK_SIZE = 8;
-    const RENDER_DISTANCE = 3;
+    const CHUNK_SIZE = 16;
+    const RENDER_DISTANCE = 2; // Radius around player in chunks
+    const allBlocks = []; // For Raycasting block break/place
+
+    function getTerrainHeight(x, z) {
+      // Layered noise for hills and valleys
+      const scale1 = 0.02;
+      const scale2 = 0.08;
+      
+      const elevation = simplex.noise2D(x * scale1, z * scale1) * 10;
+      const detail = simplex.noise2D(x * scale2, z * scale2) * 2;
+      
+      return Math.floor(elevation + detail) + 12;
+    }
+
+    function generateTree(chunkGroup, x, y, z) {
+      const trunkHeight = 4 + Math.floor(Math.random() * 2);
+
+      // Wood Trunk
+      for (let i = 0; i < trunkHeight; i++) {
+        const trunk = new THREE.Mesh(boxGeo, materials.wood);
+        trunk.position.set(x, y + i, z);
+        chunkGroup.add(trunk);
+        allBlocks.push(trunk);
+      }
+
+      // Leaves Canopy
+      const leafBaseY = y + trunkHeight - 1;
+      for (let lx = -2; lx <= 2; lx++) {
+        for (let lz = -2; lz <= 2; lz++) {
+          for (let ly = 0; ly <= 2; ly++) {
+            if (Math.abs(lx) === 2 && Math.abs(lz) === 2 && ly > 0) continue; // Round corners
+            if (lx === 0 && lz === 0 && ly < 2) continue; // Skip trunk middle
+
+            const leaf = new THREE.Mesh(boxGeo, materials.leaves);
+            leaf.position.set(x + lx, leafBaseY + ly, z + lz);
+            chunkGroup.add(leaf);
+            allBlocks.push(leaf);
+          }
+        }
+      }
+    }
 
     function generateChunk(chunkX, chunkZ) {
       const chunkKey = `${chunkX},${chunkZ}`;
@@ -92,25 +131,33 @@
         for (let z = 0; z < CHUNK_SIZE; z++) {
           const worldX = chunkX * CHUNK_SIZE + x;
           const worldZ = chunkZ * CHUNK_SIZE + z;
-          const surfaceY = pseudoNoise(worldX, worldZ);
+          const surfaceY = getTerrainHeight(worldX, worldZ);
 
-          // Top Grass
+          // Top Layer: Grass
           const grassMesh = new THREE.Mesh(boxGeo, materials.grass);
           grassMesh.position.set(worldX, surfaceY, worldZ);
           chunkGroup.add(grassMesh);
+          allBlocks.push(grassMesh);
 
-          // Dirt underneath
-          for (let y = surfaceY - 1; y >= surfaceY - 2; y--) {
+          // Dirt Layers
+          for (let y = surfaceY - 1; y >= surfaceY - 3; y--) {
             const dirtMesh = new THREE.Mesh(boxGeo, materials.dirt);
             dirtMesh.position.set(worldX, y, worldZ);
             chunkGroup.add(dirtMesh);
+            allBlocks.push(dirtMesh);
           }
 
-          // Stone deeper down
-          for (let y = surfaceY - 3; y >= surfaceY - 4; y--) {
+          // Stone Underneath
+          for (let y = surfaceY - 4; y >= surfaceY - 7; y--) {
             const stoneMesh = new THREE.Mesh(boxGeo, materials.stone);
             stoneMesh.position.set(worldX, y, worldZ);
             chunkGroup.add(stoneMesh);
+            allBlocks.push(stoneMesh);
+          }
+
+          // Random Tree Placement (0.8% chance per column)
+          if (Math.random() < 0.008 && x > 2 && x < CHUNK_SIZE - 2 && z > 2 && z < CHUNK_SIZE - 2) {
+            generateTree(chunkGroup, worldX, surfaceY + 1, worldZ);
           }
         }
       }
@@ -130,12 +177,12 @@
       }
     }
 
-    // 5. Player Controls & Controls Setup
-    camera.position.set(0, 20, 0);
+    // 5. Controls & Interaction
+    camera.position.set(0, 25, 0);
 
     let moveForward = false, moveBackward = false, moveLeft = false, moveRight = false, canJump = false;
     let velocityY = 0;
-    const gravity = -0.012;
+    const gravity = -0.014;
 
     document.addEventListener('click', () => {
       document.body.requestPointerLock();
@@ -147,7 +194,7 @@
       if (e.code === 'KeyA') moveLeft = true;
       if (e.code === 'KeyD') moveRight = true;
       if (e.code === 'Space' && canJump) {
-        velocityY = 0.22;
+        velocityY = 0.24;
         canJump = false;
       }
     });
@@ -167,22 +214,56 @@
       }
     });
 
-    // 6. Game Loop
+    // 6. Raycasting (Break / Place Blocks)
+    const raycaster = new THREE.Raycaster();
+    const mouse = new THREE.Vector2(0, 0); // Screen Center
+
+    document.addEventListener('mousedown', (e) => {
+      if (document.pointerLockElement !== document.body) return;
+
+      raycaster.setFromCamera(mouse, camera);
+      const intersects = raycaster.intersectObjects(allBlocks);
+
+      if (intersects.length > 0) {
+        const hit = intersects[0];
+
+        if (e.button === 0) {
+          // Left Click = Break Block
+          scene.remove(hit.object);
+          const index = allBlocks.indexOf(hit.object);
+          if (index > -1) allBlocks.splice(index, 1);
+        } else if (e.button === 2) {
+          // Right Click = Place Block on target face
+          const normal = hit.face.normal;
+          const newBlock = new THREE.Mesh(boxGeo, materials.dirt);
+          newBlock.position.copy(hit.object.position).add(normal);
+          scene.add(newBlock);
+          allBlocks.push(newBlock);
+        }
+      }
+    });
+
+    // Prevent default context menu on right click
+    document.addEventListener('contextmenu', e => e.preventDefault());
+
+    // 7. Main Game Loop
     function animate() {
       requestAnimationFrame(animate);
 
+      // Player Walking
       const speed = 0.12;
       if (moveForward) camera.translateZ(-speed);
       if (moveBackward) camera.translateZ(speed);
       if (moveLeft) camera.translateX(-speed);
       if (moveRight) camera.translateX(speed);
 
+      // Gravity & Ground Height Detection
       camera.position.y += velocityY;
       velocityY += gravity;
 
-      const currentGroundY = pseudoNoise(Math.round(camera.position.x), Math.round(camera.position.z)) + 2;
-      if (camera.position.y <= currentGroundY) {
-        camera.position.y = currentGroundY;
+      const groundY = getTerrainHeight(Math.round(camera.position.x), Math.round(camera.position.z)) + 2;
+      if (camera.position.y <= groundY) {
+        camera.position.y = groundY;
         velocityY = 0;
         canJump = true;
       }
